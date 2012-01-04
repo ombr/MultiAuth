@@ -1,0 +1,3 @@
+[submodule "lib/hybridauth"]
+	path = lib/hybridauth
+	url = git://github.com/hybridauth/hybridauth.git
