@@ -29,8 +29,8 @@ class MultiAuth{
         }
         $this->configs=$configs;
         //!TODO do we do that here ?
-        require_once(__DIR__ '/lib/hybridAuth/hybridAuth/Hybrid/Auth.php');//to check
-        $this->hybridauth = new Hybrid_Auth( $this->configs['hybridauth'] );
+        require_once(__DIR__.'/lib/hybridauth/hybridauth/Hybrid/Auth.php');//to check
+        $this->hybridauth = new \Hybrid_Auth( $this->configs['hybridAuth'] );
 
     }
 
@@ -40,25 +40,36 @@ class MultiAuth{
      * @author Luc Boissaye
      * @since 1.0
      */
-    public function Login(){
+    public function login(){
         $account = $this->getAccount();
         //!TODO A way to customize the parameter provider ?
         if( isset( $_GET['Provider'] ) ){
             $providerName = $_GET['Provider'];
             //$hybrid auth only here with the right provider ??
-            $provider = $hybridauth->authenticate( $providerName );
-            if( $provider->isaccountConnected() ){
+            $provider = $this->hybridauth->authenticate( $providerName );
+            $providerId = $provider->id; 
+            if( $provider->isUserConnected() ){
+                $providerId = $provider->id; 
+                $id = $provider->getUserProfile()->identifier;
                 //Fetch accounts
-                $accounts = $this->callFunctionInConfigs('accountsFromProviderIdFunction');
+                $accounts = $this->callFunctionInConfigs(
+                    'accountsFromProviderIdFunction',
+                    array(
+                        $providerName,
+                        $id
+                    )
+                );
                 if( !is_array($account) ){
                     //!TODO Exception
                 }
                 if( $account !== null && !in_array($account, $accounts)){
-                    $account->addProvider($providerName, $provider->id, $hybridauth->getSessionData());
+                    $account->addProvider($providerId, $id, $hybridauth->getSessionData());
                     $accounts[]=$account;
                 }
                 if( count($accounts) == 0 ){
-                    $account = $this->callFunctionInConfigs('createaccountFunction');
+                    $account = $this->callFunctionInConfigs('createAccountFunction');
+                    $this->callFunctionInConfigs('addProviderToUser',array());
+                    //!TODO Add Provider to account !!
                     $accounts = array($account);
                 }
                 //save in session
@@ -78,8 +89,14 @@ class MultiAuth{
     public function LoginPage(){
         $loginPage = $this->getconfig('loginPage');
         if( $loginPage !== null){
-            Hybrid_Auth::redirect($loginPage,"PHP");
+            \Hybrid_Auth::redirect($loginPage,"PHP");
         }
+        echo "LOGIN PAGE !!";
+        echo '<ul>';
+        foreach($this->configs['hybridAuth']['providers'] as $k=>$p){
+            echo '<li><a href="?Provider='.$k.'" >'.$k.'</a></li>';
+        }
+        echo '</ul>';
         //!TODO Make an alternative with loginList
     }
 
@@ -138,10 +155,10 @@ class MultiAuth{
     }
 
     public function getConfig($key,$default = null){
-        if( !isset($this->configs['sessionKey']) ){
+        if( !isset($this->configs[$key]) ){
             return $default;
         }
-        return $this->configs['sessionKey'];
+        return $this->configs[$key];
 
     }
 
@@ -169,9 +186,9 @@ class MultiAuth{
         $this->setSession('sessionAccountKey',$ids);
     }
 
-    private getSession($key,$default=null){
+    private function getSession($key, $default = null){
         $translatedKey = $this->getConfig($key,'MultiAuth-'.$key);
-        $value = HybridAuth::storage()
+        $value = \Hybrid_Auth::storage()
             ->get($translatedKey);
         if( $value === null){
             return $default;
@@ -179,23 +196,27 @@ class MultiAuth{
         return $value;
     }
 
-    private setSession($key,$value){
-        HybridAuth::storage()
+    private function setSession($key,$value){
+        \Hybrid_Auth::storage()
             ->get($key,$value);
         return $this;
     }
-    private callFunctionInConfigs($functionName, $params){
+    private function callFunctionInConfigs($functionName, $params = array()){
+        //echo 'call :';
         //!TODO make a call on the function.
         $function = $this->getConfig(
-            $functionName,
-            function (){
-                return null;
-            }
+            $functionName,null
         );
         if( !is_callable($function) ){
             //!TODO Exception
         }
-        return call_account_func($function) 
+        //var_dump($functionName);
+        //var_dump($params);
+        //var_dump($function);
+        $res = call_user_func_array($function,$params);
+        //echo 'RES : ';
+        //var_dump($res);
+        return $res;
     }
 
 }
