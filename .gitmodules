@@ -1,3 +1,6 @@
 [submodule "lib/hybridauth"]
 	path = lib/hybridauth
 	url = git://github.com/hybridauth/hybridauth.git
+[submodule "examples/doctrine"]
+	path = examples/doctrine
+	url = git@github.com:ombr/MultiAuth-Examples-Doctrine.git
